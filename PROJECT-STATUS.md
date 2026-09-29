@@ -5,6 +5,12 @@
 - The shell is built from `APP-SPEC.md` with two DUMMY questions (v01: 3 hints, 10 minutes;
   v02: 0 hints, 20 minutes). No real question, hint or route is in this repo.
 - `tools/verify_shell.py` plays it through headless at 800 x 1280 and 1280 x 800 and passes.
+- Checker play-through done 2026-09-29 (`CHECK-SHELL-2026-09-29.md`). Fix round 1 done the same day:
+  Tuis tiles in reading order with a joining line, a fixed action bar on the Vraag screen, Begin
+  waits for the question picture, Terugkyk taps survive a trip to the card (draft in
+  sessionStorage, never in `vlak4.v1`), back closes only the confirm box or the picture, and the
+  small looks (heading gap, lit Terugkyk choice, aligned tables, Roman numeral in JetBrains Mono).
+  The verify script now has fix1 to fix6 checks and a tall-picture test; all pass.
 - **NOT online.** No GitHub repo yet, no Netlify site yet. Local git only, no remote.
 
 ## Decisions taken while building
@@ -13,7 +19,8 @@
   (the spec's own word). The question screens (Vraag, Die roete, Terugkyk) also carry the
   `Vasgevang-kaart` link at the top right.
 - `Ek verstaan, wys die eerste vraag` lands on Tuis with Vraag 1 glowing.
-- The werkblad button stays on the question after Begin.
+- The werkblad button sits in the action bar before Begin and moves back into the page, under the
+  question picture, after Begin.
 - The Meer screen uses `Meer` as its heading.
 - The closing line (`Vraag N is toe. Vraag M is oop.`) shows only when the next question is
   published; after Vraag 20 it does not show.
@@ -22,6 +29,10 @@
   `60+ min` at the cap.
 - The full-screen picture closes with `Terug` or the tablet's back button.
 - Dummy `subtopic` is `dummy`.
+- Tuis: 4 columns upright, 5 sideways. The joining line is lit in `--accent` up to the current
+  tile and `--brd-2` after it. Sideways, row 4 can sit under the foot bar at the top of the page
+  when the closing line or a "nog nie hier nie" tile makes the page taller; scrolling shows it.
+- Hover looks only apply on devices with a real pointer, so a tapped button never keeps them.
 
 ## Open questions for Megan
 
@@ -30,7 +41,6 @@
 
 ## Next
 
-1. Checker play-through on a real tablet size (fresh session).
-2. Content batch 1: replace v01 and v02 with the real Vraag 1 and 2, add the rest of the batch,
+1. Content batch 1: replace v01 and v02 with the real Vraag 1 and 2, add the rest of the batch,
    update `content/index.json`.
-3. Ship: private GitHub repo and Netlify, only after Megan says so.
+2. Ship: private GitHub repo and Netlify, only after Megan says so. Still NOT online.

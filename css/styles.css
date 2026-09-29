@@ -55,13 +55,17 @@ p{font-size:18px}
 .btn{font-family:var(--font-display);font-weight:600;font-size:18px;border:1px solid var(--brd-2);background:var(--panel);color:var(--ink);
   padding:12px 18px;min-height:52px;border-radius:var(--r-md);cursor:pointer;transition:.15s;display:inline-flex;align-items:center;justify-content:center;gap:8px;
   text-decoration:none;text-align:center;line-height:1.25}
-.btn:hover{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 12%,var(--panel))}
 .btn:disabled{opacity:.5;cursor:default}
 .btn.primary{color:#04101a;background:var(--accent);border-color:transparent;box-shadow:0 6px 22px -8px color-mix(in srgb,var(--accent) 75%,transparent)}
-.btn.primary:hover{filter:brightness(1.06)}
 .btn.primary:disabled{filter:saturate(.4)}
 .btn.ghost{background:transparent}
 .btn.big{width:100%;padding:14px 16px}
+/* hover only where there is a real pointer, so a tapped button on the tablet never keeps a hover look */
+@media (hover:hover){
+  .btn:hover{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 12%,var(--panel))}
+  .btn.primary:hover{filter:brightness(1.06);background:var(--accent);border-color:transparent}
+  .tile.done:hover{border-color:var(--accent)}
+}
 .hidden-input{display:none}
 .hidden-link{display:none}
 
@@ -70,19 +74,23 @@ p{font-size:18px}
   backdrop-filter:blur(8px);box-shadow:0 0 0 1px rgba(58,160,255,.03),0 10px 30px -18px rgba(58,160,255,.35)}
 
 /* ---------- top bar ---------- */
-.topbar{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px}
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:20px}
 .topbar .btn:only-child{margin-right:auto}
 
 /* ---------- Tuis ---------- */
 .home-head{margin:8px 0 18px}
 .home-head p{font-size:19px}
 .toast{background:var(--panel);border:1px solid var(--brd-2);border-radius:var(--r-md);padding:12px 16px;margin-bottom:16px;font-size:18px}
-.path{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;position:relative}
-.tile{position:relative;min-height:120px;padding:14px 12px;border-radius:var(--r-lg);display:flex;flex-direction:column;align-items:flex-start;gap:10px;
+/* tiles run in plain reading order, left to right on every row; sideways uses five columns */
+.path{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));column-gap:16px;row-gap:26px;position:relative}
+.path-line{position:absolute;left:0;top:0;pointer-events:none;overflow:visible;z-index:0}
+.path-line line{stroke-width:2;stroke-linecap:round}
+.path-line .dim line{stroke:var(--brd-2)}
+.path-line .lit line{stroke:var(--accent);opacity:.85}
+.tile{position:relative;z-index:1;min-height:120px;padding:14px 12px;border-radius:var(--r-lg);display:flex;flex-direction:column;align-items:flex-start;gap:10px;
   background:var(--panel);border:1px solid var(--brd);color:var(--ink);font:inherit;text-align:left;min-width:0;overflow-wrap:anywhere}
 .tile .tile-n{font-family:var(--font-display);font-weight:700;font-size:19px}
 .tile.done{cursor:pointer;border-color:var(--brd-2)}
-.tile.done:hover{border-color:var(--accent)}
 .tile.done .tick{color:var(--accent)}
 .tile .tile-topic{font-size:17px;color:var(--muted);line-height:1.3}
 .tile.current{border-color:var(--accent2);
@@ -95,6 +103,11 @@ p{font-size:18px}
   max-width:860px;margin:0 auto;padding:12px 16px calc(12px + env(safe-area-inset-bottom));
   background:linear-gradient(180deg,transparent,var(--bg) 30%)}
 .foot .btn{background:var(--panel-solid)}
+.foot .btn.primary{background:var(--accent)}
+/* the Vraag action bar: same foot-bar look, one row sideways, may wrap to two rows upright */
+.foot.actionbar{display:flex;flex-wrap:wrap;align-items:stretch}
+.actionbar .hint-next,.actionbar .actions{display:contents}
+.actionbar .btn{flex:1 1 auto}
 
 /* ---------- paper cards ---------- */
 .papers{display:flex;flex-direction:column;gap:12px;margin-top:8px}
@@ -105,12 +118,11 @@ p{font-size:18px}
 /* ---------- question running ---------- */
 .run-zone{margin-top:6px}
 .hint-row{margin:10px 0}
-.hint-next{margin-top:12px}
 .btn.hint-locked{display:inline-block;line-height:26px;opacity:.55}
 .hint-locked:disabled{opacity:.55}
 .countdown{font-size:19px;letter-spacing:.5px}
 .no-hints{font-size:18px;margin:10px 0;color:var(--muted)}
-.actions{display:flex;flex-direction:column;gap:12px;margin-top:22px}
+.begin-line{margin-top:14px}
 
 /* ---------- confirm box ---------- */
 .modal-back{position:fixed;inset:0;z-index:20;background:rgba(3,6,14,.78);display:flex;align-items:center;justify-content:center;padding:16px}
@@ -133,7 +145,10 @@ fieldset{border:0}
 legend{font-family:var(--font-display);font-weight:600;font-size:20px;margin-bottom:10px}
 .choices{display:flex;flex-wrap:wrap;gap:10px}
 .choice{flex:0 1 auto}
-.choice[aria-pressed="true"]{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 26%,var(--panel));box-shadow:0 0 0 1px var(--accent)}
+/* a chosen answer: solid accent border at full strength, a tinted fill, a glow. Never red or green. */
+.choice[aria-pressed="true"],.choice[aria-pressed="true"]:hover{border-color:var(--accent);border-style:solid;
+  background:color-mix(in srgb,var(--accent) 36%,var(--panel-solid));color:#fff;
+  box-shadow:inset 0 0 0 1px var(--accent),0 0 16px -4px color-mix(in srgb,var(--accent) 80%,transparent)}
 .tk-answer{margin-bottom:12px}
 .tk-answer .answer{font-weight:600}
 
@@ -154,6 +169,14 @@ legend{font-family:var(--font-display);font-weight:600;font-size:20px;margin-bot
 .bar-count{font-size:17px;text-align:right}
 .stat-table{margin-top:8px;overflow-x:auto}
 table{width:100%;border-collapse:collapse;font-size:17px}
+/* the three tables share one set of column widths, so their columns line up */
+.stat-table table{table-layout:fixed}
+.stat-table col.c-name{width:34%}
+.stat-table col.c-vrae{width:18%}
+.stat-table col.c-wenke{width:24%}
+.stat-table col.c-tyd{width:24%}
+.stat-table th,.stat-table td{overflow-wrap:anywhere}
+.roman{font-family:var(--font-num);font-weight:500}
 th,td{padding:8px 10px;border-bottom:1px solid var(--brd);text-align:left;font-size:17px}
 thead th{color:var(--muted);font-weight:600;font-family:var(--font-display)}
 tbody th{font-weight:500}
@@ -162,8 +185,11 @@ tbody th{font-weight:500}
 /* ---------- Meer ---------- */
 .stack{display:flex;flex-direction:column;gap:12px;margin-top:14px}
 
+@media (min-width:1000px) and (orientation:landscape){
+  .path{grid-template-columns:repeat(5,minmax(0,1fr))}
+}
 @media (max-width:640px){
-  .path{gap:8px}
+  .path{column-gap:10px;row-gap:20px}
   .tile{padding:10px 8px}
   .bar-row{grid-template-columns:minmax(0,130px) minmax(0,1fr) 36px}
 }

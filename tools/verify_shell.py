@@ -5,6 +5,9 @@ It serves the repo on http://localhost:5230 by itself. Test downloads go to the 
 (default: a fresh temp folder), never to the Downloads folder. It reads the page through the
 DOM and the page text only: no screenshots.
 Covers APP-SPEC.md section 7, items 1 to 17, at 800 x 1280 and 1280 x 800, using ?toets=1.
+Also covers fix round 1 (2026-09-29): Tuis reading order and path line, the Vraag action bar with a
+TALL picture swapped in by routing, Begin waiting for the picture, the Terugkyk draft, back with the
+confirm box or picture open, and the small looks (checks named fix1 to fix6).
 """
 import json
 import re
@@ -137,6 +140,72 @@ PALETTE_JS = """() => {
 }"""
 
 
+HEAD_GAP_JS = """() => {
+  const bar = document.querySelector('main .topbar');
+  const h1 = document.querySelector('main h1');
+  if (!bar || !h1) return null;
+  return h1.getBoundingClientRect().top - bar.getBoundingClientRect().bottom;
+}"""
+
+TUIS_JS = """() => {
+  const tiles = [...document.querySelectorAll('.tile')].map(t => {
+    const r = t.getBoundingClientRect();
+    return {n: +t.dataset.n, top: r.top, left: r.left, bottom: r.bottom, right: r.right};
+  });
+  const sorted = [...tiles].sort((a, b) => Math.abs(a.top - b.top) > 2 ? a.top - b.top : a.left - b.left).map(t => t.n);
+  const rows = new Set(tiles.map(t => Math.round(t.top))).size;
+  const svg = document.querySelector('.path svg.path-line');
+  const links = svg ? [...svg.querySelectorAll('g[data-link]')].map(g => +g.dataset.link) : [];
+  const lit = svg ? [...svg.querySelectorAll('g.lit')].map(g => +g.dataset.link) : [];
+  const litStroke = svg ? [...new Set([...svg.querySelectorAll('g.lit line')].map(l => getComputedStyle(l).stroke))] : [];
+  const dimStroke = svg ? [...new Set([...svg.querySelectorAll('g.dim line')].map(l => getComputedStyle(l).stroke))] : [];
+  const over = [];
+  if (svg) for (const l of svg.querySelectorAll('line')) {
+    const r = l.getBoundingClientRect();
+    for (const t of tiles) {
+      if (r.left < t.right - 1 && r.right > t.left + 1 && r.top < t.bottom - 1 && r.bottom > t.top + 1) over.push(t.n);
+    }
+  }
+  const foot = document.querySelector('nav.foot').getBoundingClientRect();
+  const under = tiles.filter(t => t.bottom > foot.top + 0.5 && t.top < foot.bottom).map(t => t.n);
+  return {sorted, rows, links, lit, litStroke, dimStroke, over, under, footTop: foot.top};
+}"""
+
+BAR_JS = """() => {
+  const bar = document.querySelector('.actionbar');
+  if (!bar) return null;
+  const r = bar.getBoundingClientRect();
+  const cs = getComputedStyle(bar);
+  const btns = [...bar.querySelectorAll('button')].map(b => {
+    const q = b.getBoundingClientRect();
+    return {t: b.innerText.replace(/\\s+/g, ' ').trim(), top: Math.round(q.top), dis: b.disabled, hasAttr: b.hasAttribute('disabled')};
+  });
+  const inBar = (el) => bar.contains(el);
+  let last = 0;
+  for (const el of document.querySelectorAll('main *')) {
+    if (inBar(el) || el === bar) continue;
+    const q = el.getBoundingClientRect();
+    if (q.height > 0 && q.width > 0) last = Math.max(last, q.bottom);
+  }
+  return {top: r.top, bottom: r.bottom, h: r.height, vh: innerHeight, btns, pos: cs.position, bg: cs.backgroundImage,
+          lastBottom: last, pad: parseFloat(getComputedStyle(document.querySelector('main')).paddingBottom)};
+}"""
+
+
+def png_bytes(w, h):
+    """A plain white grayscale PNG of the given size (for the tall-picture test), no Pillow needed."""
+    import struct
+    import zlib
+    raw = (b"\x00" + b"\xff" * w) * h
+    def chunk(tag, data):
+        return struct.pack(">I", len(data)) + tag + data + struct.pack(">I", zlib.crc32(tag + data) & 0xFFFFFFFF)
+    return (b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", w, h, 8, 0, 0, 0, 0))
+            + chunk(b"IDAT", zlib.compress(raw, 9)) + chunk(b"IEND", b""))
+
+
+TALL_PNG = png_bytes(1600, 2400)
+
+
 class Run:
     def __init__(self, page, label):
         self.page = page
@@ -145,6 +214,8 @@ class Run:
         self.layout_fail = []
         self.button_fail = []
         self.font_fail = []
+        self.gap_fail = []
+        self.gap_seen = 0
 
     def ok(self, name, cond, detail=""):
         check(self.label, name, cond, detail)
@@ -162,6 +233,59 @@ class Run:
             self.button_fail.append(f"{name}: {lay['small'][:3]}")
         if lay["tiny"]:
             self.font_fail.append(f"{name}: {lay['tiny'][:3]}")
+        gap = self.page.evaluate(HEAD_GAP_JS)
+        if gap is not None:
+            self.gap_seen += 1
+            if gap < 16:
+                self.gap_fail.append(f"{name}: {gap:.1f}px")
+
+    def tuis(self, tag, lit_expected):
+        """Fix 1: reading order, the connecting line, and the foot bar never covering a tile."""
+        p = self.page
+        p.evaluate("window.scrollTo(0, 0)")
+        p.wait_for_timeout(250)
+        top = p.evaluate(TUIS_JS)
+        self.ok(f"fix1 {tag}: tiles read 1 to 20 in plain reading order", top["sorted"] == list(range(1, 21)), str(top["sorted"]))
+        self.ok(f"fix1 {tag}: connecting line has 19 links, none over a tile",
+                top["links"] == list(range(1, 20)) and not top["over"], f"{top['links']} over {top['over']}")
+        self.ok(f"fix1 {tag}: line lit up to the current tile, dim after it",
+                top["lit"] == lit_expected and top["dimStroke"] == ["rgba(58, 160, 255, 0.42)"]
+                and (not lit_expected or top["litStroke"] == ["rgb(58, 160, 255)"]),
+                f"lit {top['lit']} {top['litStroke']} {top['dimStroke']}")
+        p.evaluate("window.scrollTo(0, document.documentElement.scrollHeight)")
+        p.wait_for_timeout(250)
+        end = p.evaluate(TUIS_JS)
+        self.ok(f"fix1 {tag}: scrolled to the end no tile is under the foot bar", not end["under"], str(end["under"]))
+        p.evaluate("window.scrollTo(0, 0)")
+        return top
+
+    def bar(self):
+        return self.page.evaluate(BAR_JS)
+
+    def bar_checks(self, tag, texts, one_row):
+        """Fix 2: the action bar sits in the viewport, holds the right buttons, hides nothing."""
+        p = self.page
+        p.evaluate("window.scrollTo(0, 0)")
+        p.wait_for_timeout(200)
+        b = self.bar()
+        if b is None:
+            self.ok(f"fix2 {tag}: action bar exists", False)
+            return None
+        got = [x["t"] for x in b["btns"]]
+        self.ok(f"fix2 {tag}: bar holds {texts}", len(got) == len(texts) and all(re.fullmatch(t, g) for t, g in zip(texts, got)), str(got))
+        self.ok(f"fix2 {tag}: bar fixed and inside the viewport", b["pos"] == "fixed" and b["top"] >= 0 and b["bottom"] <= b["vh"] + 0.5,
+                f"{b['pos']} {b['top']:.0f}-{b['bottom']:.0f} of {b['vh']}")
+        self.ok(f"fix2 {tag}: bar at most about a quarter of the screen", b["h"] <= b["vh"] * 0.27, f"{b['h']:.0f} of {b['vh']}")
+        if one_row:
+            self.ok(f"fix2 {tag}: bar is one row", len({x["top"] for x in b["btns"]}) == 1, str([x["top"] for x in b["btns"]]))
+        self.ok(f"fix2 {tag}: page bottom padding at least the bar's height", b["pad"] >= b["h"], f"{b['pad']} vs {b['h']:.0f}")
+        p.evaluate("window.scrollTo(0, document.documentElement.scrollHeight)")
+        p.wait_for_timeout(250)
+        e = self.bar()
+        self.ok(f"fix2 {tag}: scrolled to the end, the last page content sits above the bar",
+                e["lastBottom"] <= e["top"] + 0.5 and e["bottom"] <= e["vh"] + 0.5, f"content ends {e['lastBottom']:.0f}, bar top {e['top']:.0f}")
+        p.evaluate("window.scrollTo(0, 0)")
+        return b
 
     def hash(self):
         return self.page.evaluate("location.hash")
@@ -225,6 +349,8 @@ def play(browser, w, hgt):
     r.ok("01 Tuis heading and line", "Vlak 4 Brain Training" in head and "Een vraag op 'n slag." in head)
     foot = page.locator("nav.foot button").all_inner_texts()
     r.ok("01 Tuis foot buttons", foot == ["Vasgevang-kaart", "My patrone", "Meer"], str(foot))
+    r.tuis("Tuis at the start", [])
+    foot_bg = page.evaluate("getComputedStyle(document.querySelector('nav.foot')).backgroundImage")
 
     # route guards before anything is done
     r.set_hash("#/vraag/2")
@@ -258,6 +384,12 @@ def play(browser, w, hgt):
          and "Die wenke se horlosie begin loop wanneer jy Begin tik, en loop aan terwyl jy skryf." in b)
     r.ok("02 Vasgevang-kaart link at the top of the question screen", page.locator(".topbar").get_by_role("button", name="Vasgevang-kaart").count() == 1)
     r.ok("02 question picture loaded in a paper card", r.imgs_loaded() and page.locator(".paper .paper-img").count() >= 1)
+    b = r.bar_checks("before Begin", ["Laai die werkblad af", "Begin"], True)
+    r.ok("fix2 before Begin: bar has the Tuis foot bar's glassy look", b and "foot" in page.evaluate("document.querySelector('.actionbar').className") and b["bg"] == foot_bg, b and b["bg"])
+    r.ok("fix2 before Begin: both small lines stay in the page, not in the bar",
+         page.evaluate("[...document.querySelectorAll('main .small-line')].every(p => !p.closest('.actionbar'))")
+         and page.locator(".actionbar .small-line").count() == 0)
+    r.ok("fix3 Begin active once the question picture has loaded", not r.btn("Begin").is_disabled())
 
     # werkblad download (blob) and a failed download
     with page.expect_download() as d:
@@ -281,11 +413,16 @@ def play(browser, w, hgt):
     r.snap("img-error")
     r.ok("picture failure shows the spec line and Probeer weer",
          "Die prent wou nie laai nie. Kyk of jy internet het en probeer weer." in r.body() and r.btn("Probeer weer").count() == 1)
+    page.wait_for_timeout(300)
+    r.ok("fix3 Begin stays disabled while the picture has failed",
+         r.btn("Begin").is_disabled() and r.btn("Begin").get_attribute("disabled") is not None)
     page.unroute("**/v01/vraag-1.png*")
     r.btn("Probeer weer").click()
     page.wait_for_selector(".paper-img")
     wait_imgs(r)
     r.ok("Probeer weer loads the picture", r.imgs_loaded())
+    page.wait_for_timeout(200)
+    r.ok("fix3 Begin active again after a good retry", not r.btn("Begin").is_disabled())
 
     # tap a picture: full-screen overlay with Terug, zoom allowed
     page.locator(".paper").first.click()
@@ -311,6 +448,10 @@ def play(browser, w, hgt):
     r.ok("03 after Begin: the 2 minute line shows", "Skryf iets neer binne 2 minute, al is dit verkeerd." in b)
     r.ok("03 Begin button gone after Begin", r.btn("Begin").count() == 0)
     r.ok("countdown uses JetBrains Mono", "JetBrains Mono" in page.evaluate("getComputedStyle(document.querySelector('.countdown')).fontFamily"))
+    r.bar_checks("after Begin", [r"Wenk 1 maak oop oor \d\d:\d\d", "Ek het 'n antwoord"], True)
+    r.ok("fix2 after Begin: werkblad button back in the page under the question picture",
+         page.evaluate("""() => { const w = [...document.querySelectorAll('main button')].find(b => b.innerText.trim() === 'Laai die werkblad af');
+           const p = document.querySelector('.paper'); return !!w && !w.closest('.actionbar') && w.getBoundingClientRect().top >= p.getBoundingClientRect().bottom; }"""))
 
     # 4. reload mid-countdown
     c1 = r.countdown()
@@ -383,6 +524,22 @@ def play(browser, w, hgt):
     r.ok("guard: #/roete/1 typed after 'Nog nie' still does not open", r.hash() == "#/vraag/1" and "Die oplossing" not in r.body())
     page.wait_for_selector(".actions button")
     r.btn("Ek het 'n antwoord").click()
+    page.wait_for_selector(".modal")
+    page.evaluate("history.back()")
+    page.wait_for_timeout(600)
+    st = r.state()
+    r.ok("fix5 back with the confirm box open closes the box only",
+         page.locator(".modal").count() == 0 and r.hash() == "#/vraag/1" and page.locator("h1").inner_text() == "Vraag 1"
+         and "routeOpenedAt" not in st["questions"]["1"] and r.btn("Ek het 'n antwoord").count() == 1 and "Die oplossing" not in r.body(),
+         f"{r.hash()} modal={page.locator('.modal').count()}")
+    page.locator(".paper").first.click()
+    page.wait_for_selector(".overlay img")
+    page.evaluate("history.back()")
+    page.wait_for_timeout(600)
+    r.ok("fix5 back with the full-screen picture open closes the picture only",
+         page.locator(".overlay").count() == 0 and r.hash() == "#/vraag/1" and page.locator("h1").inner_text() == "Vraag 1"
+         and "routeOpenedAt" not in r.state()["questions"]["1"] and r.btn("Ek het 'n antwoord").count() == 1)
+    r.btn("Ek het 'n antwoord").click()
     r.btn("Ja, wys die roete").click()
     page.wait_for_selector("h2:has-text('Die oplossing')")
     wait_imgs(r)
@@ -422,6 +579,25 @@ def play(browser, w, hgt):
          and opts[1] == ["Skryf in simbole", "Teken dit groter", "Probeer 'n regte getal", "Werk terugwaarts", "Wat sou dit maklik maak?",
                          "Soek die versteekte ding", 'Gebruik die "wys dat"', "Skryf 'n argument", "Geen"]
          and opts[2] == ["Begin", "Middel", "Einde", "Nêrens"], str(opts))
+    kept = r.storage()
+    groups.nth(0).get_by_role("button", name="Ja", exact=True).click()
+    groups.nth(1).get_by_role("button", name="Probeer 'n regte getal", exact=True).click()
+    page.locator(".topbar").get_by_role("button", name="Vasgevang-kaart").click()
+    page.wait_for_selector("ol.card-moves")
+    r.btn("Terug").click()
+    page.wait_for_selector("fieldset")
+    pressed = page.evaluate("[...document.querySelectorAll('.choice[aria-pressed=true]')].map(b => b.innerText.trim())")
+    r.ok("fix4 Terugkyk taps survive a visit to the card", pressed == ["Ja", "Probeer 'n regte getal"] and save.is_disabled(), str(pressed))
+    page.evaluate("history.back()")
+    page.wait_for_selector("h2:has-text('Die oplossing')")
+    r.btn("Gaan na Terugkyk").click()
+    page.wait_for_selector("fieldset")
+    pressed = page.evaluate("[...document.querySelectorAll('.choice[aria-pressed=true]')].map(b => b.innerText.trim())")
+    r.ok("fix4 Terugkyk taps survive back and return", pressed == ["Ja", "Probeer 'n regte getal"], str(pressed))
+    r.ok("fix4 the draft is not in vlak4.v1", r.storage() == kept and "terugkyk" not in r.state()["questions"]["1"]
+         and page.evaluate("sessionStorage.getItem('vlak4.terugkyk-draft')") is not None)
+    groups = page.locator("fieldset")
+    save = r.btn("Stoor en maak toe")
     groups.nth(0).get_by_role("button", name="Ja", exact=True).click()
     s1 = save.is_disabled()
     groups.nth(1).get_by_role("button", name="Probeer 'n regte getal", exact=True).click()
@@ -431,12 +607,21 @@ def play(browser, w, hgt):
     r.ok("07 save stays dimmed until all three are answered", s0 and s1 and s2 and not s3, f"{s0} {s1} {s2} {s3}")
     hits = page.evaluate(PALETTE_JS)
     r.ok("Terugkyk uses no --good/--bad colours", not hits, str(hits[:3]))
+    page.mouse.move(0, 0)
+    look = page.evaluate("""() => { const f = (b) => { const c = getComputedStyle(b); return {p: b.getAttribute('aria-pressed'), bc: c.borderTopColor, bs: c.borderTopStyle, bg: c.backgroundColor}; };
+      const g = document.querySelectorAll('fieldset')[0].querySelectorAll('button'); return [f(g[0]), f(g[1])]; }""")
+    on, off = look
+    r.ok("fix6 chosen Terugkyk button is lit: aria-pressed, solid --accent border, tinted fill, unlike an unchosen one",
+         on["p"] == "true" and off["p"] == "false" and on["bc"] == "rgb(58, 160, 255)" and on["bs"] == "solid"
+         and on["bc"] != off["bc"] and on["bg"] != off["bg"], str(look))
 
     # 8. saving
     save.click()
     page.wait_for_selector(".tile.done")
     page.wait_for_function("document.querySelector('.tile.done .tile-topic').textContent.length > 0", timeout=5000)
     r.snap("tuis-after-1")
+    r.ok("fix4 the draft is gone after saving", page.evaluate("sessionStorage.getItem('vlak4.terugkyk-draft')") is None)
+    r.tuis("Tuis after Vraag 1", [1])
     tiles = page.evaluate("[...document.querySelectorAll('.tile')].map(t => ({n: +t.dataset.n, cls: t.className, text: t.innerText.trim()}))")
     toast = page.locator(".toast").inner_text() if page.locator(".toast").count() else ""
     r.ok("08 saving ticks Vraag 1, shows its topic, opens Vraag 2",
@@ -490,6 +675,8 @@ def play(browser, w, hgt):
     r.btn("Begin").click()
     page.wait_for_selector(".no-hints")
     r.snap("vraag2-running")
+    r.bar_checks("no hints", ["Ek het 'n antwoord"], True)
+    r.ok("fix2 no hints: the no-hints line stays in the page", page.locator("main .no-hints").count() == 1 and page.locator(".actionbar .no-hints").count() == 0)
     b = r.body()
     r.ok("10 no-hints line and no hint row",
          "Hierdie vraag het geen wenke nie. Die Vasgevang-kaart is altyd hier." in b and page.locator(".hint-row").count() == 0
@@ -497,6 +684,7 @@ def play(browser, w, hgt):
     r.ok("10 'Ek het genoeg gesukkel' absent before 20 minutes", r.btn("Ek het genoeg gesukkel").count() == 0)
     r.btn("Ek het genoeg gesukkel").wait_for(timeout=26000)
     r.ok("10 'Ek het genoeg gesukkel' appears after 20 minutes", r.btn("Ek het genoeg gesukkel").count() == 1)
+    r.bar_checks("no hints, struggle time up", ["Ek het 'n antwoord", "Ek het genoeg gesukkel"], True)
     r.btn("Ek het genoeg gesukkel").click()
     r.btn("Ja, wys die roete").click()
     page.wait_for_selector("h2:has-text('Die oplossing')")
@@ -507,12 +695,32 @@ def play(browser, w, hgt):
     page.wait_for_selector("fieldset")
     g = page.locator("fieldset")
     g.nth(0).get_by_role("button", name="Nee", exact=True).click()
+    r.set_hash("#/meer")
+    page.wait_for_selector("h2:has-text('Rugsteun')")
+    with page.expect_download() as d:
+        r.btn("Stoor 'n rugsteun").click()
+    dbk = dl / "draft-rugsteun.json"
+    d.value.save_as(str(dbk))
+    raw = dbk.read_text(encoding="utf-8")
+    ex = json.loads(raw)
+    r.ok("fix4 a draft is absent from the backup file",
+         "terugkyk" not in ex["questions"]["2"] and "closedAt" not in ex["questions"]["2"] and "draft" not in raw
+         and raw.count("withinTwoMinutes") == 1 and set(ex["tags"]) == {"1"}, json.dumps(ex["questions"]["2"]))
+    r.set_hash("#/patrone")
+    page.wait_for_selector(".big-number")
+    r.ok("fix4 a draft never counts in My patrone", page.locator(".big-number").inner_text() == "1")
+    r.set_hash("#/terugkyk/2")
+    page.wait_for_selector("fieldset")
+    pressed = page.evaluate("[...document.querySelectorAll('.choice[aria-pressed=true]')].map(b => b.innerText.trim())")
+    r.ok("fix4 the draft is still there after Meer and My patrone", pressed == ["Nee"], str(pressed))
+    g = page.locator("fieldset")
     g.nth(1).get_by_role("button", name="Geen", exact=True).click()
     g.nth(2).get_by_role("button", name="Nêrens", exact=True).click()
     r.btn("Stoor en maak toe").click()
     page.wait_for_selector(".tile")
     page.wait_for_timeout(300)
     r.snap("tuis-after-2")
+    r.tuis("Tuis after Vraag 2", [1, 2])
 
     # 11. Vraag 3 not here yet
     tiles = page.evaluate("[...document.querySelectorAll('.tile')].map(t => ({n: +t.dataset.n, cls: t.className, text: t.innerText.trim()}))")
@@ -544,6 +752,12 @@ def play(browser, w, hgt):
     r.ok("12 three tables with the spec columns and display names",
          caps == ["Per onderwerp", "Per vraestel", "Per soort vraag"] and cols == ["", "Vrae", "Wenke oopgemaak", "Gemiddelde sukkeltyd"]
          and rows == ["Rye en reekse", "Statistiek", "Vraestel I", "Vraestel II", "Raaisel", "Vreemd gevra"], f"{caps} {cols} {rows}")
+    cw = page.evaluate("[...document.querySelectorAll('.stat-table table')].map(t => [...t.querySelectorAll('thead th')].map(c => { const q = c.getBoundingClientRect(); return [Math.round(q.left), Math.round(q.width)]; }))")
+    r.ok("fix6 the three tables share the same column widths",
+         len(cw) == 3 and all(len(t) == 4 for t in cw) and all(abs(a[0] - b[0]) <= 1 and abs(a[1] - b[1]) <= 1 for t in cw[1:] for a, b in zip(cw[0], t)), str(cw))
+    roman = page.evaluate("[...document.querySelectorAll('.stat-table tbody th .roman')].map(s => [s.innerText, getComputedStyle(s).fontFamily])")
+    r.ok("fix6 the numeral in Vraestel I / II is set in JetBrains Mono",
+         [x[0] for x in roman] == ["I", "II"] and all("JetBrains Mono" in x[1] for x in roman), str(roman))
     unseen = [t for t in ALL_TOPICS if t not in ("Rye en reekse", "Statistiek") and t in pb]
     totals = re.findall(r"\d+\s*(uit|van|of|/)\s*\d+", pb)
     r.ok("12 nothing about unfinished questions, no totals per topic",
@@ -666,6 +880,7 @@ def play(browser, w, hgt):
     r.ok("17 no horizontal scrolling on any screen", not r.layout_fail, "; ".join(r.layout_fail[:4]))
     r.ok("17 every button at least 48 px tall", not r.button_fail, "; ".join(r.button_fail[:4]))
     r.ok("body text at least 17 px everywhere", not r.font_fail, "; ".join(r.font_fail[:4]))
+    r.ok(f"fix6 at least 16 px between the Terug row and the heading on {r.gap_seen} screens", r.gap_seen >= 8 and not r.gap_fail, "; ".join(r.gap_fail[:4]))
     col = page.evaluate("document.querySelector('main.view').getBoundingClientRect().width")
     r.ok("content column at most 860 px", col <= 860.5, str(col))
 
@@ -674,6 +889,75 @@ def play(browser, w, hgt):
     r.ok("no outside requests except the fonts", not outside, str(outside))
     r.ok("no service worker registered", page.evaluate("navigator.serviceWorker ? navigator.serviceWorker.getRegistrations().then(x => x.length) : 0") == 0)
     r.ok("no JavaScript errors during the play-through", not errors, "; ".join(errors[:3]))
+    ctx.close()
+
+
+def tall_picture(browser, w, hgt):
+    """Fixes 2 and 3 with a TALL question picture (1600 x 2400), swapped in by routing the image
+    request. The dummy files are not touched."""
+    label = f"{w}x{hgt} tall"
+    ctx = browser.new_context(viewport={"width": w, "height": hgt})
+    page = ctx.new_page()
+    errors = []
+    page.on("pageerror", lambda e: errors.append(str(e)))
+    r = Run(page, label)
+    page.goto(T)
+    r.btn("Ek verstaan, wys die eerste vraag").click()
+    page.wait_for_selector(".tile.current")
+
+    held = []
+    page.route("**/v01/vraag-1.png*", lambda route: held.append(route))
+    page.locator(".tile.current").get_by_role("button", name="Maak oop").click()
+    page.wait_for_selector(".paper-img", state="attached")
+    page.wait_for_timeout(500)
+    begin = r.btn("Begin")
+    r.ok("fix3 Begin disabled while the question picture is still loading",
+         len(held) >= 1 and begin.is_disabled() and begin.get_attribute("disabled") is not None, f"held {len(held)}")
+    for rt in held:
+        rt.fulfill(status=200, content_type="image/png", body=TALL_PNG)
+    page.wait_for_function("[...document.querySelectorAll('.paper-img')].every(i => i.complete && i.naturalWidth > 0)", timeout=10000)
+    page.wait_for_timeout(200)
+    r.ok("fix3 Begin active once the picture has loaded", not begin.is_disabled())
+    page.unroute("**/v01/vraag-1.png*")
+
+    # a failed picture keeps Begin disabled; a good retry makes it active
+    page.route("**/v01/vraag-1.png*", lambda route: route.abort())
+    page.reload()
+    page.wait_for_selector(".paper-error")
+    page.wait_for_timeout(300)
+    r.ok("fix3 Begin stays disabled when the picture fails", r.btn("Begin").is_disabled() and r.btn("Probeer weer").count() == 1)
+    page.unroute("**/v01/vraag-1.png*")
+    page.route("**/v01/vraag-1.png*", lambda route: route.fulfill(status=200, content_type="image/png", body=TALL_PNG))
+    r.btn("Probeer weer").click()
+    page.wait_for_function("document.querySelector('.paper-img') && document.querySelector('.paper-img').complete && document.querySelector('.paper-img').naturalWidth > 0", timeout=10000)
+    page.wait_for_timeout(200)
+    r.ok("fix3 Begin active after a good retry", not r.btn("Begin").is_disabled())
+    lt = page.evaluate("document.querySelector('main .small-line').getBoundingClientRect().top")
+    r.ok("the swapped-in picture pushes the lines under it below the screen", lt > hgt, f"{lt:.0f}px")
+
+    r.bar_checks("tall picture, before Begin", ["Laai die werkblad af", "Begin"], w > hgt)
+    r.btn("Begin").click()
+    page.wait_for_selector(".countdown")
+    r.bar_checks("tall picture, after Begin", [r"Wenk 1 maak oop oor \d\d:\d\d", "Ek het 'n antwoord"], w > hgt)
+
+    # an opened hint is scrolled into view
+    r.btn("Wys Wenk 1").wait_for(timeout=15000)
+    r.bar_checks("tall picture, Wenk 1 ready", ["Wys Wenk 1", "Ek het 'n antwoord", "Ek het genoeg gesukkel"], w > hgt)
+    page.evaluate("window.scrollTo(0, 0)")
+    r.btn("Wys Wenk 1").click()
+    page.wait_for_timeout(1500)
+    pos = page.evaluate("""() => { const s = document.querySelector('.hint-open'); const b = document.querySelector('.actionbar');
+      return {top: s.getBoundingClientRect().top, head: s.querySelector('h2').getBoundingClientRect().bottom, barTop: b.getBoundingClientRect().top, y: scrollY}; }""")
+    r.ok("fix2 an opened hint is scrolled into view above the bar",
+         pos["y"] > 0 and pos["top"] >= -2 and pos["head"] <= pos["barTop"], json.dumps(pos))
+    r.ok("fix2 the opened hint stays in the page flow under the question, not in the bar",
+         page.locator(".actionbar .hint-open").count() == 0
+         and page.evaluate("document.querySelector('.hint-open').getBoundingClientRect().top > document.querySelector('.paper').getBoundingClientRect().bottom"))
+    r.bar_checks("tall picture, Wenk 1 open", [r"Wenk 2 maak oop oor \d\d:\d\d", "Ek het 'n antwoord", "Ek het genoeg gesukkel"], w > hgt)
+    r.snap("tall-running")
+    r.ok("tall picture: no horizontal scroll, buttons 48 px, text 17 px", not r.layout_fail and not r.button_fail and not r.font_fail,
+         "; ".join(r.layout_fail + r.button_fail + r.font_fail))
+    r.ok("tall picture: no JavaScript errors", not errors, "; ".join(errors[:3]))
     ctx.close()
 
 
@@ -808,6 +1092,8 @@ def main():
         browser = pw.chromium.launch(headless=True)
         pure_functions(browser)
         corrupt_storage(browser)
+        for w, hgt in ((800, 1280), (1280, 800)):
+            tall_picture(browser, w, hgt)
         for w, hgt in ((800, 1280), (1280, 800)):
             play(browser, w, hgt)
         browser.close()

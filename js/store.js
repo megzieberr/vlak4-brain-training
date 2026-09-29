@@ -132,6 +132,30 @@ export function buildExport(tagsByNumber) {
   return { ...s, tags };
 }
 
+// ---------- Terugkyk draft ----------
+// Taps on the Terugkyk before it is saved. Kept in sessionStorage under its own key, never
+// inside vlak4.v1, so a draft is never an answer: not in the stats, not in the backup file.
+
+export const DRAFT_KEY = 'vlak4.terugkyk-draft';
+
+export function getDraft(n) {
+  try {
+    const d = JSON.parse(sessionStorage.getItem(DRAFT_KEY) || 'null');
+    if (!d || d.n !== n || !d.answers || typeof d.answers !== 'object') return null;
+    return d.answers;
+  } catch (e) {
+    return null;
+  }
+}
+
+export function setDraft(n, answers) {
+  try { sessionStorage.setItem(DRAFT_KEY, JSON.stringify({ n, answers })); } catch (e) { /* nothing to do */ }
+}
+
+export function clearDraft() {
+  try { sessionStorage.removeItem(DRAFT_KEY); } catch (e) { /* nothing to do */ }
+}
+
 // Check a file's parsed contents before anything is replaced.
 export function isBackup(obj) {
   return !!(obj && typeof obj === 'object' && !Array.isArray(obj)

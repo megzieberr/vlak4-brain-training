@@ -111,6 +111,24 @@ function view(...children) {
   window.scrollTo(0, 0);
 }
 
+// A bar fixed to the foot of the screen: give the page bottom padding equal to the bar's real
+// height (plus a little air), so the bar never hides the last of the page.
+function padForFootBar(bar) {
+  const main = bar.closest('main');
+  if (!main) return;
+  const fit = () => {
+    if (!bar.isConnected) return;
+    main.style.paddingBottom = `${Math.ceil(bar.getBoundingClientRect().height) + 24}px`;
+  };
+  fit();
+  watchSize(bar, fit);
+}
+
+function watchSize(el, fn) {
+  if (typeof ResizeObserver === 'function') new ResizeObserver(fn).observe(el);
+  else window.addEventListener('resize', fn);
+}
+
 function topbar(backTo, withCard) {
   return h('div', { class: 'topbar' },
     btn(S.terug, () => goBack(backTo), 'btn ghost'),
@@ -129,24 +147,34 @@ function downloadBlob(blob, name) {
 
 // ---------- pictures ----------
 
-function pictures(n, files) {
+// onChange (optional) is called each time one of the pictures finishes loading or fails.
+function pictures(n, files, onChange) {
   const wrap = h('div', { class: 'papers' });
-  for (const f of files || []) wrap.append(picture(contentUrl(n, f)));
+  for (const f of files || []) wrap.append(picture(contentUrl(n, f), onChange));
   return wrap;
 }
 
-function picture(url) {
+// True when every picture in the block has loaded (a failed one counts as not loaded).
+function allLoaded(wrap) {
+  return [...wrap.querySelectorAll('.paper-slot')].every((s) => s.dataset.state === 'loaded');
+}
+
+function picture(url, onChange) {
   const card = h('div', { class: 'paper-slot' });
+  const setState = (st) => { card.dataset.state = st; if (onChange) onChange(); };
   const show = (src) => {
     const img = h('img', { src, alt: '', class: 'paper-img' });
     const b = h('button', { type: 'button', class: 'paper', onclick: () => openOverlay(src) }, img);
+    img.addEventListener('load', () => setState('loaded'));
     img.addEventListener('error', () => {
       card.replaceChildren(h('div', { class: 'paper-error' },
         h('p', { text: S.imgFail }),
         btn(S.retry, () => show(`${url}&r=${Date.now()}`)),
       ));
+      setState('failed');
     });
     card.replaceChildren(b);
+    setState('loading');
   };
   show(url);
   return card;
@@ -172,23 +200,44 @@ function closeOverlay() {
   document.body.classList.remove('no-scroll');
 }
 
-window.addEventListener('popstate', () => { if (overlayEl) closeOverlay(); });
-
 // ---------- confirm box ----------
+// Opening the box adds one history entry (same address), so the tablet's back button closes
+// the box and nothing else. Both buttons step back over that entry first; the chosen action
+// runs once the step back has landed.
+
+let modalState = null; // { el, after }
 
 function confirmBox(title, line, yesLabel, noLabel, onYes) {
   const back = h('div', { class: 'modal-back' });
-  const close = () => back.remove();
+  const finish = (after) => {
+    if (!modalState || modalState.el !== back) return;
+    back.remove();
+    modalState.after = after;
+    history.back();
+  };
   back.append(h('div', { class: 'modal card', role: 'dialog', 'aria-modal': 'true' },
     title ? h('h2', { text: title }) : null,
     h('p', { text: line }),
     h('div', { class: 'row' },
-      btn(yesLabel, () => { close(); onYes(); }, 'btn primary'),
-      btn(noLabel, close, 'btn'),
+      btn(yesLabel, () => finish(onYes), 'btn primary'),
+      btn(noLabel, () => finish(null), 'btn'),
     ),
   ));
   document.body.append(back);
+  modalState = { el: back, after: null };
+  history.pushState({ modal: true }, '');
 }
+
+window.addEventListener('popstate', () => {
+  if (modalState) {
+    const m = modalState;
+    modalState = null;
+    m.el.remove();
+    if (m.after) m.after();
+    return;
+  }
+  if (overlayEl) closeOverlay();
+});
 
 // ---------- router ----------
 
@@ -206,6 +255,7 @@ async function route() {
   stopTick();
   closeOverlay();
   document.querySelectorAll('.modal-back').forEach((m) => m.remove());
+  modalState = null;
   const state = store.load();
   const r = parse();
 
@@ -245,11 +295,9 @@ function renderTuis(state) {
   const current = currentNumber(state);
   const allDone = current === null;
   const path = h('div', { class: 'path' });
+  const redraw = () => drawPathLine(path, allDone ? TOTAL : current);
 
   for (let n = 1; n <= TOTAL; n++) {
-    const i = n - 1;
-    const row = Math.floor(i / 4);
-    const col = row % 2 === 0 ? (i % 4) + 1 : 4 - (i % 4);
     let tile;
     if (isClosed(state, n)) {
       const topic = h('span', { class: 'tile-topic' });
@@ -257,7 +305,7 @@ function renderTuis(state) {
         h('span', { class: 'tile-n' }, S.vraag(n), h('span', { class: 'tick', 'aria-hidden': 'true' }, ' ✓')),
         topic,
       );
-      loadMeta(n).then((m) => { topic.textContent = (m.tags && m.tags.topic) || ''; }).catch(() => {});
+      loadMeta(n).then((m) => { topic.textContent = (m.tags && m.tags.topic) || ''; redraw(); }).catch(() => {});
     } else if (n === current) {
       tile = h('div', { class: 'tile current', 'data-n': n },
         h('span', { class: 'tile-n', text: S.vraag(n) }),
@@ -271,8 +319,6 @@ function renderTuis(state) {
         lockIcon(),
       );
     }
-    tile.style.gridRow = String(row + 1);
-    tile.style.gridColumn = String(col);
     path.append(tile);
   }
 
@@ -280,6 +326,11 @@ function renderTuis(state) {
   flash = null;
   if (toast) setTimeout(() => toast.remove(), 5000);
 
+  const foot = h('nav', { class: 'foot' },
+    btn(S.footCard, () => go('#/kaart')),
+    btn(S.footPatrone, () => go('#/patrone')),
+    btn(S.footMeer, () => go('#/meer')),
+  );
   view(
     h('header', { class: 'home-head' },
       h('h1', { text: S.appTitle }),
@@ -287,19 +338,62 @@ function renderTuis(state) {
     ),
     toast,
     path,
-    h('nav', { class: 'foot' },
-      btn(S.footCard, () => go('#/kaart')),
-      btn(S.footPatrone, () => go('#/patrone')),
-      btn(S.footMeer, () => go('#/meer')),
-    ),
+    foot,
   );
+  padForFootBar(foot);
+  redraw();
+  watchSize(path, redraw);
+}
+
+// The thin line that joins the 20 tiles into one path, in reading order. It runs only through
+// the gaps between tiles, never over a tile: a short link between neighbours in a row, and
+// from the end of a row down into the gap, across, and down into the start of the next row.
+// Links up to the current tile are lit; links after it are dim.
+function drawPathLine(path, litUpTo) {
+  const ns = 'http://www.w3.org/2000/svg';
+  let svg = path.querySelector('svg.path-line');
+  if (!svg) {
+    svg = document.createElementNS(ns, 'svg');
+    svg.setAttribute('class', 'path-line');
+    svg.setAttribute('aria-hidden', 'true');
+    path.prepend(svg);
+  }
+  const W = path.clientWidth;
+  const H = path.clientHeight;
+  svg.setAttribute('width', W);
+  svg.setAttribute('height', H);
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  const tiles = [...path.querySelectorAll('.tile')];
+  const box = (t) => ({ l: t.offsetLeft, t: t.offsetTop, r: t.offsetLeft + t.offsetWidth, b: t.offsetTop + t.offsetHeight });
+  const parts = [];
+  for (let i = 0; i < tiles.length - 1; i++) {
+    const a = box(tiles[i]);
+    const b = box(tiles[i + 1]);
+    const lit = i + 2 <= (litUpTo || 0);
+    const cls = lit ? 'lit' : 'dim';
+    const seg = (x1, y1, x2, y2) => `<line class="${cls}" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/>`;
+    let lines;
+    if (Math.abs(a.t - b.t) < 2) {
+      const y = (a.t + a.b) / 2;
+      lines = seg(a.r, y, b.l, y);
+    } else {
+      const ax = (a.l + a.r) / 2;
+      const bx = (b.l + b.r) / 2;
+      const gy = (a.b + b.t) / 2;
+      lines = seg(ax, a.b, ax, gy) + seg(ax, gy, bx, gy) + seg(bx, gy, bx, b.t);
+    }
+    parts.push(`<g data-link="${i + 1}" class="${cls}">${lines}</g>`);
+  }
+  svg.innerHTML = parts.join('');
 }
 
 // ---------- 4.2, 4.3, 4.8 Vraag ----------
 
-function werkbladBlock(n, meta) {
+// The werkblad button, its error line and its small line. The block keeps the lines; the button
+// sits in the block, or in the Vraag action bar before Begin.
+function werkbladParts(n, meta) {
   const msg = h('p', { class: 'error-line', role: 'status' });
-  const b = btn(S.werkbladBtn, async () => {
+  const button = btn(S.werkbladBtn, async () => {
     msg.textContent = '';
     try {
       const r = await fetch(contentUrl(n, meta.werkblad));
@@ -310,7 +404,12 @@ function werkbladBlock(n, meta) {
       msg.textContent = S.werkbladFail;
     }
   });
-  return h('div', { class: 'block' }, b, msg, h('p', { class: 'small-line', text: S.werkbladLine }));
+  const block = h('div', { class: 'block werkblad' }, button, msg, h('p', { class: 'small-line', text: S.werkbladLine }));
+  return { block, button };
+}
+
+function werkbladBlock(n, meta) {
+  return werkbladParts(n, meta).block;
 }
 
 async function metaOrError(n, seq) {
@@ -352,52 +451,81 @@ async function renderVraag(n, state, seq) {
     return;
   }
 
+  // Page flow: heading, question picture(s), werkblad lines, then the run zone.
+  // The buttons live in the action bar fixed to the foot of the screen (spec 4.2, 4.3).
+  let onPictures = () => {};
+  const pics = pictures(n, images.question, () => onPictures());
+  const werkblad = werkbladParts(n, meta);
   const zone = h('div', { class: 'run-zone' });
+  const bar = h('div', { class: 'foot actionbar' });
   view(
     topbar('#/', true),
     h('h1', { text: S.vraag(n) }),
-    pictures(n, images.question),
-    werkbladBlock(n, meta),
+    pics,
+    werkblad.block,
     zone,
+    bar,
   );
-  fillRunZone(zone, n, meta);
+  padForFootBar(bar);
+  fillRunZone({ zone, bar, werkblad, pics, setOnPictures: (fn) => { onPictures = fn; } }, n, meta);
 }
 
-function fillRunZone(zone, n, meta) {
+function fillRunZone(ctx, n, meta) {
+  const { zone, bar, werkblad, pics } = ctx;
   const q = store.getQ(n);
   if (!q || !Number.isFinite(q.beganAt)) {
-    zone.replaceChildren(h('div', { class: 'block' },
-      btn(S.begin, () => { store.begin(n, Date.now()); fillRunZone(zone, n, meta); }, 'btn primary big'),
-      h('p', { class: 'small-line', text: S.beginLine }),
-    ));
+    // Before Begin: the werkblad button and Begin sit in the bar. Begin stays disabled until
+    // every question picture has loaded.
+    const beginBtn = btn(S.begin, () => {
+      if (!allLoaded(pics)) return;
+      store.begin(n, Date.now());
+      fillRunZone(ctx, n, meta);
+    }, 'btn primary');
+    const gate = () => { beginBtn.disabled = !allLoaded(pics); };
+    gate();
+    ctx.setOnPictures(gate);
+    werkblad.button.remove();
+    bar.replaceChildren(werkblad.button, beginBtn);
+    zone.replaceChildren(h('p', { class: 'small-line begin-line', text: S.beginLine }));
     return;
   }
+  ctx.setOnPictures(() => {});
+
+  // After Begin: the werkblad button goes back into the page under the question picture.
+  if (werkblad.button.parentNode !== werkblad.block) werkblad.block.prepend(werkblad.button);
 
   const hintFiles = (meta.images && meta.images.hints) || [];
   const openedList = h('div', { class: 'hints-opened' });
   const nextSlot = h('div', { class: 'hint-next' });
   const actions = h('div', { class: 'actions' });
-  const answerBtn = btn(S.haveAnswer, () => askRoute(n, 'antwoord'), 'btn big');
-  const struggleBtn = btn(S.struggledEnough, () => askRoute(n, 'gesukkel'), 'btn big');
+  const answerBtn = btn(S.haveAnswer, () => askRoute(n, 'antwoord'), 'btn');
+  const struggleBtn = btn(S.struggledEnough, () => askRoute(n, 'gesukkel'), 'btn');
   actions.append(answerBtn);
 
   const hasHints = (meta.hints | 0) > 0;
   zone.replaceChildren(
     h('p', { class: 'lead', text: S.twoMinutes }),
-    hasHints ? h('div', { class: 'hint-row' }, openedList, nextSlot) : h('p', { class: 'no-hints', text: S.noHints }),
-    actions,
+    hasHints ? h('div', { class: 'hint-row' }, openedList) : h('p', { class: 'no-hints', text: S.noHints }),
   );
+  if (hasHints) bar.replaceChildren(nextSlot, actions);
+  else bar.replaceChildren(actions);
 
   let nextKey = '';
+  let scrollToNew = false;
   const tick = () => {
     const st = clock.status(meta, store.getQ(n), Date.now(), SPEED);
     if (hasHints) {
       while (openedList.children.length < st.opened) {
         const i = openedList.children.length;
-        openedList.append(h('section', { class: 'block hint-open' },
+        const sec = h('section', { class: 'block hint-open' },
           h('h2', { text: S.hintHeading(i + 1) }),
           pictures(n, hintFiles[i] ? [hintFiles[i]] : []),
-        ));
+        );
+        openedList.append(sec);
+        if (scrollToNew && openedList.children.length === st.opened) {
+          scrollToNew = false;
+          sec.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
       }
       if (!st.next) {
         if (nextKey !== 'none') { nextSlot.replaceChildren(); nextKey = 'none'; }
@@ -407,6 +535,7 @@ function fillRunZone(zone, n, meta) {
           const idx = st.next.index;
           nextSlot.replaceChildren(btn(S.hintReady(idx + 1), () => {
             store.openHint(n, idx, Date.now());
+            scrollToNew = true;
             tick();
           }, 'btn primary'));
           nextKey = key;
@@ -476,10 +605,11 @@ async function renderRoete(n, state, seq) {
 
 // ---------- 4.5 Terugkyk ----------
 
-function choiceGroup(question, options, onPick) {
+function choiceGroup(question, options, onPick, chosen) {
   const wrap = h('div', { class: 'choices' });
   const buttons = options.map(([value, label]) => {
-    const b = h('button', { type: 'button', class: 'btn choice', 'aria-pressed': 'false' }, label);
+    const on = chosen !== null && chosen !== undefined && value === chosen;
+    const b = h('button', { type: 'button', class: 'btn choice', 'aria-pressed': on ? 'true' : 'false' }, label);
     b.addEventListener('click', () => {
       buttons.forEach((x) => x.setAttribute('aria-pressed', x === b ? 'true' : 'false'));
       onPick(value);
@@ -496,10 +626,19 @@ function renderTerugkyk(n, state) {
     redirect(`#/vraag/${n}`); // the question screen has its own guard
     return;
   }
-  const answers = { withinTwoMinutes: null, move: null, stuck: null };
+  // Taps made earlier (before a trip to the card, or a back and return) come back from the
+  // draft. The draft is not an answer until Stoor en maak toe.
+  const d = store.getDraft(n) || {};
+  const answers = {
+    withinTwoMinutes: typeof d.withinTwoMinutes === 'boolean' ? d.withinTwoMinutes : null,
+    move: Number.isInteger(d.move) && d.move >= 0 && d.move <= 8 ? d.move : null,
+    stuck: Object.prototype.hasOwnProperty.call(S.stuckNames, d.stuck) ? d.stuck : null,
+  };
+  const pick = (key) => (v) => { answers[key] = v; store.setDraft(n, answers); refresh(); };
   const save = btn(S.tkSave, () => {
     if (!ready()) return;
     store.closeQuestion(n, answers, Date.now());
+    store.clearDraft();
     const m = n + 1;
     flash = m <= TOTAL && isPublished(m) ? S.closedToast(n, m) : null;
     redirect('#/');
@@ -514,9 +653,9 @@ function renderTerugkyk(n, state) {
   view(
     topbar(`#/roete/${n}`, true),
     h('h1', { text: S.terugkyk }),
-    choiceGroup(S.tkWithin, [[true, S.ja], [false, S.nee]], (v) => { answers.withinTwoMinutes = v; refresh(); }),
-    choiceGroup(S.tkMove, moveOptions, (v) => { answers.move = v; refresh(); }),
-    choiceGroup(S.tkStuck, Object.entries(S.stuckNames), (v) => { answers.stuck = v; refresh(); }),
+    choiceGroup(S.tkWithin, [[true, S.ja], [false, S.nee]], pick('withinTwoMinutes'), answers.withinTwoMinutes),
+    choiceGroup(S.tkMove, moveOptions, pick('move'), answers.move),
+    choiceGroup(S.tkStuck, Object.entries(S.stuckNames), pick('stuck'), answers.stuck),
     h('div', { class: 'block' }, save),
   );
 }
@@ -581,17 +720,26 @@ function bars(rows, max) {
   )));
 }
 
+// A trailing Roman numeral (Vraestel I, Vraestel II) is set in the number font, whose capital I
+// has serifs, so it cannot read as the letter l. The text itself stays the same.
+function withRoman(name) {
+  const m = /^(.*\s)([IVX]+)$/.exec(String(name));
+  if (!m) return String(name);
+  return [m[1], h('span', { class: 'roman', text: m[2] })];
+}
+
 function statTable(caption, rows, nameOf) {
   if (!rows.length) return null;
   const tyd = (avg) => (avg ? (avg.capped ? S.cappedMinutes : S.minutes(avg.minutes)) : '');
   return h('div', { class: 'stat-table' },
     h('h3', { text: caption }),
     h('table', null,
+      h('colgroup', null, h('col', { class: 'c-name' }), h('col', { class: 'c-vrae' }), h('col', { class: 'c-wenke' }), h('col', { class: 'c-tyd' })),
       h('thead', null, h('tr', null,
         h('th', { scope: 'col' }), h('th', { scope: 'col', text: S.colVrae }),
         h('th', { scope: 'col', text: S.colWenke }), h('th', { scope: 'col', text: S.colTyd }))),
       h('tbody', null, rows.map((r) => h('tr', null,
-        h('th', { scope: 'row', text: nameOf(r.name) }),
+        h('th', { scope: 'row' }, withRoman(nameOf(r.name))),
         h('td', { class: 'num', text: String(r.count) }),
         h('td', { class: 'num', text: String(r.hints) }),
         h('td', { class: 'num', text: tyd(r.avg) }),
