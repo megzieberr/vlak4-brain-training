@@ -1,0 +1,22 @@
+{
+  "number": 1,
+  "paper": "I",
+  "marks": 6,
+  "hints": 3,
+  "struggleMinutes": 10,
+  "tags": {
+    "topic": "Rye en reekse",
+    "subtopic": "dummy",
+    "kind": "P",
+    "device": "dummy"
+  },
+  "openedBy": { "move": 3, "line": "Kaart-stap 3: Probeer 'n regte getal." },
+  "stry": "DUMMY: dit is 'n toetsvraag sonder inhoud.",
+  "images": {
+    "question": ["vraag-1.png"],
+    "hints": ["wenk-1.png", "wenk-2.png", "wenk-3.png"],
+    "route": ["roete-1.png"],
+    "solution": ["oplossing-1.png"]
+  },
+  "werkblad": "werkblad-v01.pdf"
+}

@@ -1,0 +1,22 @@
+{
+  "number": 2,
+  "paper": "II",
+  "marks": 5,
+  "hints": 0,
+  "struggleMinutes": 20,
+  "tags": {
+    "topic": "Statistiek",
+    "subtopic": "dummy",
+    "kind": "S",
+    "device": "dummy"
+  },
+  "openedBy": { "move": 1, "line": "Kaart-stap 1: Skryf in simbole." },
+  "stry": "DUMMY: dit is 'n toetsvraag sonder inhoud.",
+  "images": {
+    "question": ["vraag-1.png"],
+    "hints": [],
+    "route": ["roete-1.png"],
+    "solution": ["oplossing-1.png"]
+  },
+  "werkblad": "werkblad-v02.pdf"
+}
