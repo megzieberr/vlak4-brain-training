@@ -16,7 +16,7 @@
   sessionStorage, never in `vlak4.v1`), back closes only the confirm box or the picture, and the
   small looks (heading gap, lit Terugkyk choice, aligned tables, Roman numeral in JetBrains Mono).
   The verify script now has fix1 to fix6 checks and a tall-picture test; all pass.
-- **NOT online.** No GitHub repo yet, no Netlify site yet. Local git only, no remote.
+- **NOT online.** PRIVATE GitHub repo megzieberr/vlak4-brain-training since 2026-09-29 (branch master). No Netlify site, no GitHub Pages.
 
 ## Decisions taken while building
 
