@@ -15,7 +15,7 @@ no login, no database.
 ## Run it locally
 
 ```
-cd "C:\Users\megzi\Desktop\Claude Code Projects\vlak4-brain-training"
+cd vlak4-brain-training
 python -m http.server 5230
 ```
 

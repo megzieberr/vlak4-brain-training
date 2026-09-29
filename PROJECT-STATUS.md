@@ -3,8 +3,7 @@
 ## Where we are
 
 - The shell is built from `APP-SPEC.md`. **`content\v01` is the REAL Vraag 1 since 2026-09-29**
-  (exported by `_sjabloon\export_content.py` in the content folder, not yet read by Megan, NOT
-  committed). `content\v02` is still a dummy (0 hints, 20 minutes).
+  (exported by `_sjabloon\export_content.py` in the content folder, read and approved by the teacher, checked). `content\v02` is still a dummy (0 hints, 20 minutes).
 - Hint, route and solution pictures of a real question carry random file names, listed in its
   `vraag.json`. Never rename them by hand: re-run the export.
 - `tools/verify_shell.py` plays it through headless at 800 x 1280 and 1280 x 800 and passes
@@ -16,7 +15,7 @@
   sessionStorage, never in `vlak4.v1`), back closes only the confirm box or the picture, and the
   small looks (heading gap, lit Terugkyk choice, aligned tables, Roman numeral in JetBrains Mono).
   The verify script now has fix1 to fix6 checks and a tall-picture test; all pass.
-- **NOT online.** PRIVATE GitHub repo megzieberr/vlak4-brain-training since 2026-09-29 (branch master). No Netlify site, no GitHub Pages.
+- **ONLINE since 2026-09-29** on GitHub Pages, from a PUBLIC repo (her ruling that day; it replaces the private repo + Netlify plan). PUBLIC means: no learner names in any file, ever.
 
 ## Decisions taken while building
 
@@ -39,7 +38,7 @@
   when the closing line or a "nog nie hier nie" tile makes the page taller; scrolling shows it.
 - Hover looks only apply on devices with a real pointer, so a tapped button never keeps them.
 
-## Open questions for Megan
+## Open questions for the teacher
 
 - Rule 6 (`Geen punte nie. ...`) contains the word "punte", while spec 7.16 says "punte" must
   not appear on any screen. The rule is kept word for word; the check allows that one line.
@@ -48,4 +47,4 @@
 
 1. Content batch 1: replace v01 and v02 with the real Vraag 1 and 2, add the rest of the batch,
    update `content/index.json`.
-2. Ship: private GitHub repo and Netlify, only after Megan says so. Still NOT online.
+2. Later questions: each content update is pushed only on the teacher's yes.
