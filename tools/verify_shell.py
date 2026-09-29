@@ -31,6 +31,16 @@ OUT.mkdir(parents=True, exist_ok=True)
 
 RESULTS = []
 
+# What the checks expect of Vraag 1 and 2 is read from their own data files, so the
+# script keeps working when a dummy is replaced by the real question.
+V1 = json.loads((ROOT / "content" / "v01" / "vraag.json").read_text(encoding="utf-8"))
+V2 = json.loads((ROOT / "content" / "v02" / "vraag.json").read_text(encoding="utf-8"))
+
+
+def tags_of(v):
+    return {"topic": v["tags"]["topic"], "subtopic": v["tags"]["subtopic"], "paper": v["paper"],
+            "kind": v["tags"]["kind"], "device": v["tags"]["device"], "marks": v["marks"]}
+
 
 def check(label, name, ok, detail=""):
     RESULTS.append(bool(ok))
@@ -76,7 +86,7 @@ RULES = [
 MOVES = [
     ("Skryf neer wat jy weet, in simbole.", "Elke gegewe word 'n vergelyking of 'n etiket."),
     ("Teken dit, of teken dit oor, groter.", "Sit elke gegewe op die figuur."),
-    ("Probeer 'n regte getal.", "As daar 'n k of 'n t is, kies 2 en kyk wat gebeur."),
+    ("Kies self 'n getal.", "As daar 'n k of 'n t is, kies 2 en kyk wat gebeur."),
     ("Werk terugwaarts.", "Wat vra hulle? Wat sou ek nodig hê om DIT te kry?"),
     ("Vra: wat sou dit maklik maak?", "Watter feit ontbreek? Waar kom dit vandaan?"),
     ("Soek die versteekte ding.", "360° in 'n sirkel, 30° per uur, 'n hoek van 90° wat nie geteken is nie, die woord \"raaklyn\"."),
@@ -551,7 +561,7 @@ def play(browser, w, hgt):
          and isinstance(st["questions"]["1"].get("routeOpenedAt"), (int, float)))
     r.ok("roete: sections in the spec order", heads == ["Die roete", "Die oplossing", "Wat het dit oopgemaak", "Stry met juffrou"], str(heads))
     r.ok("roete: opened-by line, stry line, small line, Gaan na Terugkyk",
-         "Kaart-stap 3: Probeer 'n regte getal." in rb and "DUMMY: dit is 'n toetsvraag sonder inhoud." in rb
+         V1["openedBy"]["line"] in rb and V1["stry"] in rb
          and "Jy kies self vir wie jy dit stuur. Jy hoef nie." in rb and r.btn("Gaan na Terugkyk").count() == 1)
 
     # 15. WhatsApp link
@@ -562,7 +572,7 @@ def play(browser, w, hgt):
     r.ok("15 WhatsApp: wa.me with no number, ready message, new tab",
          u.scheme == "https" and u.netloc == "wa.me" and u.path == "/" and a.get_attribute("target") == "_blank"
          and a.inner_text().strip() == "Stuur op WhatsApp"
-         and text == "Vraag 1, Stry met juffrou: DUMMY: dit is 'n toetsvraag sonder inhoud.\n\nEk dink:", href)
+         and text == "Vraag 1, Stry met juffrou: " + V1["stry"] + "\n\nEk dink:", href)
 
     # 7. Terugkyk
     r.btn("Gaan na Terugkyk").click()
@@ -576,31 +586,31 @@ def play(browser, w, hgt):
     r.ok("07 Terugkyk: three questions with the spec buttons",
          legends == ["Het ek binne 2 minute iets neergeskryf?", "Watter kaart-stap het dit oopgemaak?", "Waar het ek vasgehaak?"]
          and opts[0] == ["Ja", "Nee"]
-         and opts[1] == ["Skryf in simbole", "Teken dit groter", "Probeer 'n regte getal", "Werk terugwaarts", "Wat sou dit maklik maak?",
+         and opts[1] == ["Skryf in simbole", "Teken dit groter", "Kies self 'n getal", "Werk terugwaarts", "Wat sou dit maklik maak?",
                          "Soek die versteekte ding", 'Gebruik die "wys dat"', "Skryf 'n argument", "Geen"]
          and opts[2] == ["Begin", "Middel", "Einde", "Nêrens"], str(opts))
     kept = r.storage()
     groups.nth(0).get_by_role("button", name="Ja", exact=True).click()
-    groups.nth(1).get_by_role("button", name="Probeer 'n regte getal", exact=True).click()
+    groups.nth(1).get_by_role("button", name="Kies self 'n getal", exact=True).click()
     page.locator(".topbar").get_by_role("button", name="Vasgevang-kaart").click()
     page.wait_for_selector("ol.card-moves")
     r.btn("Terug").click()
     page.wait_for_selector("fieldset")
     pressed = page.evaluate("[...document.querySelectorAll('.choice[aria-pressed=true]')].map(b => b.innerText.trim())")
-    r.ok("fix4 Terugkyk taps survive a visit to the card", pressed == ["Ja", "Probeer 'n regte getal"] and save.is_disabled(), str(pressed))
+    r.ok("fix4 Terugkyk taps survive a visit to the card", pressed == ["Ja", "Kies self 'n getal"] and save.is_disabled(), str(pressed))
     page.evaluate("history.back()")
     page.wait_for_selector("h2:has-text('Die oplossing')")
     r.btn("Gaan na Terugkyk").click()
     page.wait_for_selector("fieldset")
     pressed = page.evaluate("[...document.querySelectorAll('.choice[aria-pressed=true]')].map(b => b.innerText.trim())")
-    r.ok("fix4 Terugkyk taps survive back and return", pressed == ["Ja", "Probeer 'n regte getal"], str(pressed))
+    r.ok("fix4 Terugkyk taps survive back and return", pressed == ["Ja", "Kies self 'n getal"], str(pressed))
     r.ok("fix4 the draft is not in vlak4.v1", r.storage() == kept and "terugkyk" not in r.state()["questions"]["1"]
          and page.evaluate("sessionStorage.getItem('vlak4.terugkyk-draft')") is not None)
     groups = page.locator("fieldset")
     save = r.btn("Stoor en maak toe")
     groups.nth(0).get_by_role("button", name="Ja", exact=True).click()
     s1 = save.is_disabled()
-    groups.nth(1).get_by_role("button", name="Probeer 'n regte getal", exact=True).click()
+    groups.nth(1).get_by_role("button", name="Kies self 'n getal", exact=True).click()
     s2 = save.is_disabled()
     groups.nth(2).get_by_role("button", name="Middel", exact=True).click()
     s3 = save.is_disabled()
@@ -654,7 +664,7 @@ def play(browser, w, hgt):
          and r.btn("Laai die werkblad af").count() == 1 and page.locator("a#whatsapp").count() == 1, str(heads))
     tk = page.locator(".my-terugkyk .answer").all_inner_texts()
     r.ok("4.8 her three answers as plain text, no buttons to change them",
-         tk == ["Ja", "Probeer 'n regte getal", "Middel"] and page.locator(".my-terugkyk button").count() == 0, str(tk))
+         tk == ["Ja", "Kies self 'n getal", "Middel"] and page.locator(".my-terugkyk button").count() == 0, str(tk))
     r.ok("4.8 no Begin, no countdown, no route buttons",
          r.btn("Begin").count() == 0 and page.locator(".countdown").count() == 0 and r.btn("Ek het 'n antwoord").count() == 0)
     page.locator(".paper").first.click()
@@ -689,7 +699,7 @@ def play(browser, w, hgt):
     r.btn("Ja, wys die roete").click()
     page.wait_for_selector("h2:has-text('Die oplossing')")
     r.snap("roete2")
-    r.ok("10 route of Vraag 2 shows its opened-by line", "Kaart-stap 1: Skryf in simbole." in r.body()
+    r.ok("10 route of Vraag 2 shows its opened-by line", V2["openedBy"]["line"] in r.body()
          and r.state()["questions"]["2"]["routeVia"] == "gesukkel")
     r.btn("Gaan na Terugkyk").click()
     page.wait_for_selector("fieldset")
@@ -745,7 +755,7 @@ def play(browser, w, hgt):
     stuck = page.evaluate("[...document.querySelectorAll('section.stat')[2].querySelectorAll('.bar-row')].map(r => r.innerText.replace(/\\s+/g,' ').trim())")
     r.ok("12 four stuck bars with counts", stuck == ["Begin 0", "Middel 1", "Einde 0", "Nêrens 1"], str(stuck))
     mv = page.evaluate("[...document.querySelectorAll('section.stat')[3].querySelectorAll('.bar-row')].map(r => r.innerText.replace(/\\s+/g,' ').trim())")
-    r.ok("12 card moves picked, with counts (Geen left out)", mv == ["Probeer 'n regte getal 1"], str(mv))
+    r.ok("12 card moves picked, with counts (Geen left out)", mv == ["Kies self 'n getal 1"], str(mv))
     caps = page.locator(".stat-table h3").all_inner_texts()
     rows = page.evaluate("[...document.querySelectorAll('.stat-table tbody th')].map(t => t.innerText.trim())")
     cols = page.evaluate("[...document.querySelector('.stat-table thead tr').children].map(t => t.innerText.trim())")
@@ -787,8 +797,8 @@ def play(browser, w, hgt):
     ex = json.loads(p.read_text(encoding="utf-8"))
     r.ok("patterns file: storage object plus tags per finished question",
          ex["version"] == 1 and set(ex["questions"]) == {"1", "2"}
-         and ex["tags"]["1"] == {"topic": "Rye en reekse", "subtopic": "dummy", "paper": "I", "kind": "P", "device": "dummy", "marks": 6}
-         and ex["tags"]["2"]["kind"] == "S" and d.value.url.startswith("blob:"), json.dumps(ex.get("tags")))
+         and ex["tags"]["1"] == tags_of(V1)
+         and ex["tags"]["2"] == tags_of(V2) and d.value.url.startswith("blob:"), json.dumps(ex.get("tags")))
 
     # 13. backup, clear, restore
     r.set_hash("#/meer")

@@ -6,17 +6,32 @@
   "struggleMinutes": 10,
   "tags": {
     "topic": "Rye en reekse",
-    "subtopic": "dummy",
+    "subtopic": "Rye",
     "kind": "P",
-    "device": "dummy"
+    "device": "a series hiding inside a sequence"
   },
-  "openedBy": { "move": 3, "line": "Kaart-stap 3: Probeer 'n regte getal." },
-  "stry": "DUMMY: dit is 'n toetsvraag sonder inhoud.",
+  "openedBy": {
+    "move": 3,
+    "line": "Kaart-stap 3: Kies self 'n getal."
+  },
+  "stry": "As elke ry met 'n ewe getal begin het, sou 1 500 steeds in dieselfde ry gestaan het?",
   "images": {
-    "question": ["vraag-1.png"],
-    "hints": ["wenk-1.png", "wenk-2.png", "wenk-3.png"],
-    "route": ["roete-1.png"],
-    "solution": ["oplossing-1.png"]
+    "question": [
+      "vraag-1.png"
+    ],
+    "hints": [
+      "b20070a3519d.png",
+      "bbf84e0e944c.png",
+      "334aaec4492a.png"
+    ],
+    "route": [
+      "c01d4996baa9.png",
+      "9a951843f326.png"
+    ],
+    "solution": [
+      "f9b91532671d.png",
+      "499525995d2c.png"
+    ]
   },
   "werkblad": "werkblad-v01.pdf"
 }

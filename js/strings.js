@@ -59,7 +59,7 @@ export const S = {
   moveNames: {
     1: 'Skryf in simbole',
     2: 'Teken dit groter',
-    3: "Probeer 'n regte getal",
+    3: "Kies self 'n getal",
     4: 'Werk terugwaarts',
     5: 'Wat sou dit maklik maak?',
     6: 'Soek die versteekte ding',
@@ -73,7 +73,7 @@ export const S = {
   cardMovesHtml: [
     "<strong>Skryf neer wat jy weet, in simbole.</strong> Elke gegewe word 'n vergelyking of 'n etiket.",
     '<strong>Teken dit, of teken dit oor, groter.</strong> Sit elke gegewe op die figuur.',
-    "<strong>Probeer 'n regte getal.</strong> As daar 'n <em>k</em> of 'n <em>t</em> is, kies 2 en kyk wat gebeur.",
+    "<strong>Kies self 'n getal.</strong> As daar 'n <em>k</em> of 'n <em>t</em> is, kies 2 en kyk wat gebeur.",
     '<strong>Werk terugwaarts.</strong> Wat vra hulle? Wat sou ek nodig hê om DIT te kry?',
     '<strong>Vra: wat sou dit maklik maak?</strong> Watter feit ontbreek? Waar kom dit vandaan?',
     "<strong>Soek die versteekte ding.</strong> 360° in 'n sirkel, 30° per uur, 'n hoek van 90° wat nie geteken is nie, die woord \"raaklyn\".",

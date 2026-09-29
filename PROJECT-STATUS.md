@@ -2,9 +2,14 @@
 
 ## Where we are
 
-- The shell is built from `APP-SPEC.md` with two DUMMY questions (v01: 3 hints, 10 minutes;
-  v02: 0 hints, 20 minutes). No real question, hint or route is in this repo.
-- `tools/verify_shell.py` plays it through headless at 800 x 1280 and 1280 x 800 and passes.
+- The shell is built from `APP-SPEC.md`. **`content\v01` is the REAL Vraag 1 since 2026-09-29**
+  (exported by `_sjabloon\export_content.py` in the content folder, not yet read by Megan, NOT
+  committed). `content\v02` is still a dummy (0 hints, 20 minutes).
+- Hint, route and solution pictures of a real question carry random file names, listed in its
+  `vraag.json`. Never rename them by hand: re-run the export.
+- `tools/verify_shell.py` plays it through headless at 800 x 1280 and 1280 x 800 and passes
+  (392 of 392 with the real Vraag 1). Since 2026-09-29 it reads what it expects of Vraag 1 and 2
+  from their own `vraag.json`, so it keeps working as dummies are replaced.
 - Checker play-through done 2026-09-29 (`CHECK-SHELL-2026-09-29.md`). Fix round 1 done the same day:
   Tuis tiles in reading order with a joining line, a fixed action bar on the Vraag screen, Begin
   waits for the question picture, Terugkyk taps survive a trip to the card (draft in
