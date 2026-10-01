@@ -1,0 +1,37 @@
+{
+  "number": 3,
+  "paper": "I",
+  "marks": 4,
+  "hints": 3,
+  "struggleMinutes": 10,
+  "tags": {
+    "topic": "Rye en reekse",
+    "subtopic": "Reekse",
+    "kind": "A",
+    "device": "the impossible question"
+  },
+  "openedBy": {
+    "move": 8,
+    "line": "Kaart-stap 8: Skryf 'n argument."
+  },
+  "stry": "Wat is die kleinste som tot oneindig wat 'n reeks met eerste term 30 kán hê?",
+  "images": {
+    "question": [
+      "vraag-1.png"
+    ],
+    "hints": [
+      "01e694c7383f.png",
+      "805f07ee1a9c.png",
+      "caae41d0cd93.png"
+    ],
+    "route": [
+      "1a1847a625d4.png",
+      "9d844d5a613b.png"
+    ],
+    "solution": [
+      "de8ebea6c7ea.png",
+      "cb77669bd7ab.png"
+    ]
+  },
+  "werkblad": "werkblad-v03.pdf"
+}

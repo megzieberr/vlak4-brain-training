@@ -2,21 +2,36 @@
   "number": 2,
   "paper": "II",
   "marks": 5,
-  "hints": 0,
-  "struggleMinutes": 20,
+  "hints": 3,
+  "struggleMinutes": 10,
   "tags": {
     "topic": "Statistiek",
-    "subtopic": "dummy",
+    "subtopic": "Datahantering",
     "kind": "S",
-    "device": "dummy"
+    "device": "the given and the asked swapped"
   },
-  "openedBy": { "move": 1, "line": "Kaart-stap 1: Skryf in simbole." },
-  "stry": "DUMMY: dit is 'n toetsvraag sonder inhoud.",
+  "openedBy": {
+    "move": 1,
+    "line": "Kaart-stap 1: Skryf neer wat jy weet, in simbole."
+  },
+  "stry": "Kan jy 'n datastel bou waar die gemiddeld kleiner is as die kleinste waarde? Hoekom nie?",
   "images": {
-    "question": ["vraag-1.png"],
-    "hints": [],
-    "route": ["roete-1.png"],
-    "solution": ["oplossing-1.png"]
+    "question": [
+      "vraag-1.png"
+    ],
+    "hints": [
+      "a67aa375f999.png",
+      "81a785315772.png",
+      "a2029f31d013.png"
+    ],
+    "route": [
+      "6c988715067b.png",
+      "2cc46dfe5be3.png"
+    ],
+    "solution": [
+      "02b184820930.png",
+      "a90479ff9366.png"
+    ]
   },
   "werkblad": "werkblad-v02.pdf"
 }
