@@ -1,0 +1,38 @@
+{
+  "number": 4,
+  "paper": "II",
+  "marks": 8,
+  "hints": 3,
+  "struggleMinutes": 10,
+  "tags": {
+    "topic": "Euklidiese meetkunde",
+    "subtopic": "Eweredigheid",
+    "kind": "N",
+    "device": "two keys for one lock"
+  },
+  "openedBy": {
+    "move": 5,
+    "line": "Kaart-stap 5: Vra: wat sou dit maklik maak?"
+  },
+  "stry": "As AR/BR = 7/3 was, sou AT nog 'n heelgetal wees?",
+  "images": {
+    "question": [
+      "vraag-1.png"
+    ],
+    "hints": [
+      "72d8ae61f34c.png",
+      "34bb3747dece.png",
+      "823b45b02a2e.png"
+    ],
+    "route": [
+      "e5b958ea31ba.png",
+      "2da3471f457d.png"
+    ],
+    "solution": [
+      "12bafe64f6e3.png",
+      "e53a2e46a528.png",
+      "1d746fe1fd1b.png"
+    ]
+  },
+  "werkblad": "werkblad-v04.pdf"
+}
