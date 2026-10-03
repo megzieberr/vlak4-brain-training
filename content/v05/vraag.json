@@ -1,0 +1,37 @@
+{
+  "number": 5,
+  "paper": "I",
+  "marks": 6,
+  "hints": 3,
+  "struggleMinutes": 10,
+  "tags": {
+    "topic": "Finansies",
+    "subtopic": "Saamgestelde rente",
+    "kind": "S",
+    "device": "here is the answer, write the question"
+  },
+  "openedBy": {
+    "move": 2,
+    "line": "Kaart-stap 2: Teken dit, of teken dit oor, groter."
+  },
+  "stry": "As die onttrekking eerder 'n deposito was, watter EEN teken in die vergelyking verander?",
+  "images": {
+    "question": [
+      "vraag-1.png"
+    ],
+    "hints": [
+      "ac13296ea2a4.png",
+      "9ca9ce074254.png",
+      "47e5200fb2d9.png"
+    ],
+    "route": [
+      "65027740acb4.png",
+      "3717dfa49085.png"
+    ],
+    "solution": [
+      "c6d1c39477f7.png",
+      "0d8a69091805.png"
+    ]
+  },
+  "werkblad": "werkblad-v05.pdf"
+}
