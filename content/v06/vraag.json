@@ -1,0 +1,37 @@
+{
+  "number": 6,
+  "paper": "II",
+  "marks": 6,
+  "hints": 3,
+  "struggleMinutes": 10,
+  "tags": {
+    "topic": "Euklidiese meetkunde",
+    "subtopic": "Sirkelmeetkunde",
+    "kind": "P",
+    "device": "the fact you need is not in the question"
+  },
+  "openedBy": {
+    "move": 6,
+    "line": "Kaart-stap 6: Soek die versteekte ding."
+  },
+  "stry": "Wat word die hoek as die koorde BUITE die sirkel ontmoet?",
+  "images": {
+    "question": [
+      "vraag-1.png"
+    ],
+    "hints": [
+      "08d78fc4c79a.png",
+      "023824a7e578.png",
+      "6524f6177ad9.png"
+    ],
+    "route": [
+      "9795cfa6a6fa.png",
+      "39b60cb5470a.png"
+    ],
+    "solution": [
+      "e22f199c5d9a.png",
+      "d5b28f0bb48c.png"
+    ]
+  },
+  "werkblad": "werkblad-v06.pdf"
+}
