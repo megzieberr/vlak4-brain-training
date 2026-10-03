@@ -1,0 +1,35 @@
+{
+  "number": 8,
+  "paper": "II",
+  "marks": 8,
+  "hints": 1,
+  "struggleMinutes": 15,
+  "tags": {
+    "topic": "Trigonometrie",
+    "subtopic": "Trigonometriese vergelykings",
+    "kind": "S",
+    "device": "an equation that is secretly an identity"
+  },
+  "openedBy": {
+    "move": 4,
+    "line": "Kaart-stap 4: Werk terugwaarts."
+  },
+  "stry": "Is 'alle x behalwe k·90°' 'n algemene oplossing? Hoe sou jy dit skryf sodat 'n nasiener dit aanvaar?",
+  "images": {
+    "question": [
+      "vraag-1.png"
+    ],
+    "hints": [
+      "9f39c442be71.png"
+    ],
+    "route": [
+      "e1206efc225a.png",
+      "433cfae221bd.png"
+    ],
+    "solution": [
+      "62837b234571.png",
+      "c3a16b7f90e6.png"
+    ]
+  },
+  "werkblad": "werkblad-v08.pdf"
+}

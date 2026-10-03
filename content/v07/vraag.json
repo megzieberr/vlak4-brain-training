@@ -1,0 +1,38 @@
+{
+  "number": 7,
+  "paper": "I",
+  "marks": 8,
+  "hints": 3,
+  "struggleMinutes": 10,
+  "tags": {
+    "topic": "Rye en reekse",
+    "subtopic": "Rye",
+    "kind": "N",
+    "device": "a rule used as an equation"
+  },
+  "openedBy": {
+    "move": 1,
+    "line": "Kaart-stap 1: Skryf neer wat jy weet, in simbole."
+  },
+  "stry": "Kan 'n kwadratiese patroon twee terme hê wat gelyk is? Drie?",
+  "images": {
+    "question": [
+      "vraag-1.png"
+    ],
+    "hints": [
+      "e85e5c03cca6.png",
+      "f4a9ce6b44f7.png",
+      "23caff064ee0.png"
+    ],
+    "route": [
+      "3cbb2a5bbb63.png",
+      "783ab7c7c43b.png"
+    ],
+    "solution": [
+      "e240efb0a00c.png",
+      "e3b21b82f60f.png",
+      "c10fbd8ad69a.png"
+    ]
+  },
+  "werkblad": "werkblad-v07.pdf"
+}
